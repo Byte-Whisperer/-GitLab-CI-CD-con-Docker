@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  gitlab:
+    image: gitlab/gitlab-ce:latest
+    restart: always
+    container_name: ${GITLAB_NAME}
+    hostname: ${GITLAB_NAME}
+    environment:
+      GITLAB_OMNIBUS_CONFIG: |
+        external_url '${GITLAB_URL}'
+        gitlab_rails['initial_root_password'] = '${GITLAB_ROOT_PASSWORD}'
+        gitlab_rails['artifacts_enabled'] = ${GITLAB_ARTIFACTS_ENABLED}
+        gitlab_rails['artifacts_max_size'] = ${GITLAB_ARTIFACTS_MAX_SIZE}
+    ports:
+      - '8929:8929'
+      - '2222:22'
+    volumes:
+      - ./gitlab/config:/etc/gitlab
+      - ./gitlab/logs:/var/log/gitlab
+      - ./gitlab/data:/var/opt/gitlab
+    networks:
+      - default
+  gitlab-runner:
+    image: gitlab/gitlab-runner:latest
+    restart: always
+    container_name: ${GITLAB_RUNNER_NAME}
+    hostname: ${GITLAB_RUNNER_NAME}
+    environment:
+      - CI_SERVER_URL=${GITLAB_URL}
+      - GITLAB_RUNNER_TOKEN=${GITLAB_RUNNER_TOKEN}
+      - GITLAB_NETWORK_NAME=${GITLAB_NETWORK_NAME}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./gitlab/runner-config:/etc/gitlab-runner
+      - ./entrypoint.sh:/entrypoint.sh
+    entrypoint: ['/bin/bash', '-c', 'sleep 300 && /entrypoint.sh']
+    networks:
+      - default
+    depends_on:
+      - gitlab
+networks:
+  default:
+    driver: bridge
+    name: ${GITLAB_NETWORK_NAME}
